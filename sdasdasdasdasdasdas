@@ -1,0 +1,61 @@
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local target = nil
+local lockOn = false
+
+-- 가장 가까운 타겟 (거리 제한 없음)
+local function getClosestTarget()
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+
+    local closest = nil
+    local shortest = math.huge
+
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (char.HumanoidRootPart.Position - plr.Character.HumanoidRootPart.Position).Magnitude
+            if dist < shortest then
+                shortest = dist
+                closest = plr.Character.HumanoidRootPart
+            end
+        end
+    end
+
+    return closest
+end
+
+-- Q 키로 토글
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+
+    if input.KeyCode == Enum.KeyCode.Q then
+        lockOn = not lockOn
+
+        if lockOn then
+            target = getClosestTarget()
+        else
+            target = nil
+        end
+    end
+end)
+
+-- 완전 고정 에임
+RunService.RenderStepped:Connect(function()
+    if lockOn and target and player.Character then
+        local root = player.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            local targetPos = target.Position
+
+            -- 캐릭터 즉시 회전 (딱 고정)
+            root.CFrame = CFrame.new(root.Position, targetPos)
+
+            -- 카메라도 즉시 고정
+            camera.CFrame = CFrame.new(camera.CFrame.Position, targetPos)
+        end
+    end
+end)
