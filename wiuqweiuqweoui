@@ -1,0 +1,97 @@
+local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local enabled = false
+local espObjects = {}
+
+-- UI 생성
+local function createESP(character, player)
+    if espObjects[character] then return end
+
+    local head = character:FindFirstChild("Head")
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not head or not humanoid then return end
+
+    -- BillboardGui (머리 위 UI)
+    local gui = Instance.new("BillboardGui")
+    gui.Size = UDim2.new(4,0,5,0)
+    gui.AlwaysOnTop = true
+    gui.Adornee = head
+    gui.Parent = head
+
+    -- 이름
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1,0,0.3,0)
+    nameLabel.Position = UDim2.new(0,0,0,0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = player.Name
+    nameLabel.TextColor3 = Color3.new(1,1,1)
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.Parent = gui
+
+    -- 체력바 배경
+    local healthBG = Instance.new("Frame")
+    healthBG.Size = UDim2.new(1,0,0.2,0)
+    healthBG.Position = UDim2.new(0,0,0.35,0)
+    healthBG.BackgroundColor3 = Color3.new(0,0,0)
+    healthBG.Parent = gui
+
+    -- 체력바
+    local healthBar = Instance.new("Frame")
+    healthBar.Size = UDim2.new(1,0,1,0)
+    healthBar.BackgroundColor3 = Color3.fromRGB(0,255,0)
+    healthBar.Parent = healthBG
+
+    -- 체력 업데이트
+    humanoid.HealthChanged:Connect(function()
+        local percent = humanoid.Health / humanoid.MaxHealth
+        healthBar.Size = UDim2.new(percent,0,1,0)
+    end)
+
+    -- 네모 박스 (몸 전체)
+    local highlight = Instance.new("Highlight")
+    highlight.FillTransparency = 1 -- 안 채우고
+    highlight.OutlineColor = Color3.new(1,1,1) -- 흰색 테두리
+    highlight.OutlineTransparency = 0
+    highlight.Parent = character
+
+    espObjects[character] = {gui, highlight}
+end
+
+-- 제거
+local function removeAll()
+    for _, objs in pairs(espObjects) do
+        for _, obj in pairs(objs) do
+            if obj then obj:Destroy() end
+        end
+    end
+    espObjects = {}
+end
+
+-- E 키 토글
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+
+    if input.KeyCode == Enum.KeyCode.E then
+        enabled = not enabled
+
+        if enabled then
+            for _, plr in pairs(Players:GetPlayers()) do
+                if plr ~= Players.LocalPlayer and plr.Character then
+                    createESP(plr.Character, plr)
+                end
+            end
+        else
+            removeAll()
+        end
+    end
+end)
+
+-- 새 플레이어 적용
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function(char)
+        if enabled then
+            createESP(char, plr)
+        end
+    end)
+end)
