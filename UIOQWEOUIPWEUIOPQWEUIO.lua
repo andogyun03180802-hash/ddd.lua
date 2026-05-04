@@ -1,57 +1,70 @@
-local player = game.Players.LocalPlayer
-local camera = workspace.CurrentCamera
-local runService = game:GetService("RunService")
-local userInput = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
-local npcFolder = workspace:WaitForChild("NPCs")
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 
 local lockOn = false
+local target = nil
 
--- Q 입력
-userInput.InputBegan:Connect(function(input, gp)
-	if input.KeyCode == Enum.KeyCode.Q and not gp then
-		lockOn = true
-	end
-end)
+-- 가장 가까운 타겟 찾기
+local function getClosestTarget()
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
 
-userInput.InputEnded:Connect(function(input)
-	if input.KeyCode == Enum.KeyCode.Q then
-		lockOn = false
-	end
-end)
+    local closest = nil
+    local shortest = math.huge
 
--- ✅ "사람"인지 확인
-local function isHuman(character)
-	return character:FindFirstChild("Humanoid") 
-	   and character:FindFirstChild("Head")
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character then
+            local head = plr.Character:FindFirstChild("Head")
+            if head then
+                local dist = (char.HumanoidRootPart.Position - head.Position).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    closest = head
+                end
+            end
+        end
+    end
+
+    return closest
 end
 
--- 가장 가까운 "사람" 찾기
-local function getClosestNPC()
-	local closest = nil
-	local shortest = math.huge
+-- Q 키 토글
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
 
-	for _, npc in pairs(npcFolder:GetChildren()) do
-		if isHuman(npc) then
-			local head = npc.Head
-			local dist = (head.Position - camera.CFrame.Position).Magnitude
+    if input.KeyCode == Enum.KeyCode.Q then
+        lockOn = not lockOn
 
-			if dist < shortest then
-				shortest = dist
-				closest = head
-			end
-		end
-	end
+        if not lockOn then
+            target = nil
+        end
+    end
+end)
 
-	return closest
-end
+-- 계속 갱신 + 에임
+RunService.RenderStepped:Connect(function()
+    if lockOn and player.Character then
+        
+        -- 🔥 매 프레임 타겟 다시 찾기
+        target = getClosestTarget()
 
--- 에임 고정
-runService.RenderStepped:Connect(function()
-	if lockOn then
-		local target = getClosestNPC()
-		if target then
-			camera.CFrame = CFrame.new(camera.CFrame.Position, target.Position)
-		end
-	end
+        if target then
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+
+            if root then
+                local targetPos = target.Position
+
+                -- 몸 회전
+                local lookPos = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
+                root.CFrame = CFrame.new(root.Position, lookPos)
+
+                -- 카메라 에임
+                camera.CFrame = CFrame.new(camera.CFrame.Position, targetPos)
+            end
+        end
+    end
 end)
